@@ -1,0 +1,145 @@
+*lvim-cycle.txt*    A smarter CTRL-A/CTRL-X: increment, decrement, cycle
+
+==============================================================================
+CONTENTS                                              *lvim-cycle*
+
+  1. Introduction ........................... |lvim-cycle-intro|
+  2. Setup .................................. |lvim-cycle-setup|
+  3. Mappings ............................... |lvim-cycle-mappings|
+  4. Augends ................................ |lvim-cycle-augends|
+  5. Groups ................................. |lvim-cycle-groups|
+  6. API .................................... |lvim-cycle-api|
+  7. Highlights ............................. |lvim-cycle-highlights|
+
+==============================================================================
+1. INTRODUCTION                                 *lvim-cycle-intro*
+
+lvim-cycle replaces CTRL-A/CTRL-X with an augend engine: every enabled
+augend proposes its nearest match at/after the cursor, and the best span
+wins — a span containing the cursor beats one after it; within a tier the
+earlier start, then the longer span, then the earlier augend in the group
+list. Like the native commands, nothing BEFORE the cursor ever changes
+(the markdown-heading augend is the deliberate exception: it works from
+anywhere on the heading line).
+
+The delta is the typed count (default 1). After a change the cursor lands
+on the end of the new text — or the end of the changed FIELD for dates,
+semver segments and hex-color channels — and the span is briefly tinted
+(|hl-LvimCycleFlash|). Normal-mode operations dot-repeat with their count:
+the triggers ride the native 'operatorfunc' mechanism (|g@|), no extra
+plumbing.
+
+==============================================================================
+2. SETUP                                        *lvim-cycle-setup*
+>lua
+  require("lvim-cycle").setup({
+      map_default_keys = true, -- <C-a>/<C-x>, g<C-a>/g<C-x> (visual)
+      flash = true,            -- tint the changed span
+      groups = {
+          default = {
+              "int", "float", "date", "semver", "hexcolor",
+              { elements = { "true", "false" } },
+              { elements = { "on", "off" } },
+              { elements = { "&&", "||" }, word = false },
+          },
+      },
+  })
+<
+A user group list REPLACES the default list wholesale. Every spec is
+validated in setup(); a broken one fails immediately with a precise
+"groups.<name>[<index>]: …" message. See README.md for the full option
+reference.
+
+==============================================================================
+3. MAPPINGS                                     *lvim-cycle-mappings*
+
+With `map_default_keys = true` (all count-aware):
+
+  CTRL-A / CTRL-X      normal: increment / decrement the value under (or
+                       after) the cursor; dot-repeatable
+  {Visual}CTRL-A/CTRL-X  the first match on every selected line
+  {Visual}g CTRL-A     sequential increment: the k-th matched line gets
+                       k × count (renumber lists in one stroke)
+  {Visual}g CTRL-X     sequential decrement
+
+<Plug> maps for manual binding (`map_default_keys = false`):
+
+  <Plug>(lvim-cycle-increment)             normal + visual
+  <Plug>(lvim-cycle-decrement)             normal + visual
+  <Plug>(lvim-cycle-increment-sequential)  visual
+  <Plug>(lvim-cycle-decrement-sequential)  visual
+
+==============================================================================
+4. AUGENDS                                      *lvim-cycle-augends*
+
+Built-in augends (referenced by name in a group list):
+
+  int              decimal (signed), hex 0x, binary 0b, octal 0o;
+                   zero-padded width and hex letter case preserved;
+                   non-decimal bases clamp at 0
+  float            fixed-point decimals, written precision preserved
+  date             "%Y-%m-%dT%H:%M", "%Y-%m-%d", "%d/%m/%Y", "%H:%M";
+                   steps the FIELD under the cursor (day when the match
+                   is after the cursor), normalised via os.time round-trip
+                   (month-end, leap years); custom formats via
+                   { kind = "date", patterns = { "%d.%m.%Y" } } with the
+                   tokens %Y %m %d %H %M %S
+  semver           bumps the segment under the cursor, zeroes the lower
+                   ones; clamps at 0 (and then changes nothing)
+  hexcolor         #rrggbb / #rrggbbaa: steps the channel under the
+                   cursor (0–255); from the "#" all channels at once;
+                   { kind = "hexcolor", all_channels = true } always does
+  markdown_header  ATX heading level "#" ⇄ "######", from anywhere on
+                   the line
+  constant         word groups: { elements = { "true", "false" },
+                   cyclic = true, word = true, preserve_case = true };
+                   preserve_case matches case-insensitively and transfers
+                   UPPER/Title casing; word = false for operator-like
+                   elements ("&&")
+
+A raw custom augend is a table with two functions: >lua
+  {
+      find = function(line, col) -- best match at/after col, or nil
+          return { s = 1, e = 3, text = line:sub(1, 3) }
+      end,
+      add = function(text, delta, cur) -- new text, optional new cursor
+          return text:upper()
+      end,
+  }
+<
+==============================================================================
+5. GROUPS                                       *lvim-cycle-groups*
+                                                *b:lvim_cycle_group*
+Group resolution per buffer:
+
+  1. `vim.b.lvim_cycle_group` — a key of `groups`
+  2. the buffer's 'filetype' — e.g. `groups.markdown`
+  3. `groups.default`
+
+Example per-filetype groups: >lua
+  require("lvim-cycle").setup({
+      groups = {
+          markdown = { "markdown_header", "int", "date" },
+          css = { "hexcolor", "int", "float" },
+      },
+  })
+<
+==============================================================================
+6. API                                          *lvim-cycle-api*
+
+  setup({opts})        Configure and start (idempotent; validates specs).
+  increment({count})   Increment at the cursor (programmatic; no repeat).
+  decrement({count})   Decrement at the cursor.
+
+==============================================================================
+7. HIGHLIGHTS                                   *lvim-cycle-highlights*
+                                                *hl-LvimCycleFlash*
+  LvimCycleFlash    The changed-span tint (~120 ms). Self-themed from the
+                    lvim-utils palette (blend(yellow, bg, 0.3)), re-derived
+                    on colorscheme change; links to IncSearch when
+                    lvim-utils is absent.
+
+Health check: run `:checkhealth lvim-cycle` for group-spec validation,
+shadowed default keys, the lvim-utils dependency state and the flash group.
+
+vim:tw=78:ts=8:noet:ft=help:norl:
