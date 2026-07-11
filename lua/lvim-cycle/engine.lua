@@ -27,10 +27,6 @@ local config = require("lvim-cycle.config")
 
 local M = {}
 
--- How long the confirmation tint stays on the changed span.
----@type integer
-local FLASH_MS = 120
-
 ---@type integer
 local ns = vim.api.nvim_create_namespace("lvim-cycle-flash")
 ---@type uv.uv_timer_t|nil  shared one-shot timer clearing every pending flash
@@ -87,7 +83,7 @@ function M.pick(candidates, col)
     return best
 end
 
---- Tint the changed span for FLASH_MS. One shared timer serves every flash: a burst
+--- Tint the changed span for `config.flash_ms`. One shared timer serves every flash: a burst
 --- (visual mode over many lines) restarts it once and a single sweep clears them all.
 ---@param buf integer
 ---@param row integer   0-based row
@@ -109,7 +105,7 @@ function M.flash(buf, row, scol, ecol)
     end
     flash_timer:stop()
     flash_timer:start(
-        FLASH_MS,
+        config.flash_ms,
         0,
         vim.schedule_wrap(function()
             for b in pairs(flashed) do

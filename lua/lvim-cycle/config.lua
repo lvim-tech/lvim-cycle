@@ -17,12 +17,14 @@
 ---@class LvimCycleConfig
 ---@field map_default_keys boolean               map <C-a>/<C-x> (normal + visual) and g<C-a>/g<C-x> (visual sequential)
 ---@field flash boolean                          briefly tint the changed span (LvimCycleFlash) as confirmation
+---@field flash_ms integer                        how long (ms) the confirmation tint stays on the changed span
 ---@field groups table<string, LvimCycleSpec[]>  augend groups: "default" + per-FILETYPE lists (key = filetype) + named lists selectable via vim.b.lvim_cycle_group
 
 ---@type LvimCycleConfig
 return {
     map_default_keys = true,
     flash = true,
+    flash_ms = 120,
     -- Group resolution per buffer: vim.b.lvim_cycle_group (a key of this table) → the
     -- buffer's filetype → "default". Order inside a list matters: when two augends
     -- propose equally-placed matches, the EARLIER one wins.
