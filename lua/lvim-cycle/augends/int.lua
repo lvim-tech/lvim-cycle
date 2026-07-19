@@ -25,14 +25,17 @@ local RADIX = {
 ---@param col integer
 ---@param out LvimCycleMatch[]
 ---@return nil
-local function scan(line, pat, col, out)
+---@param guard_adjacent boolean?  reject a match that directly follows an alnum (a RADIX literal inside a
+---                                longer token, e.g. `0x1080` starting at the `0` of `1920x1080`)
+local function scan(line, pat, col, out, guard_adjacent)
     local init = 1
     while true do
         local s, e = line:find(pat, init)
         if not s or not e then
             break
         end
-        if e >= col then
+        local adjacent = guard_adjacent and s > 1 and line:sub(s - 1, s - 1):match("%w")
+        if e >= col and not adjacent then
             out[#out + 1] = { s = s, e = e, text = line:sub(s, e) }
         end
         init = e + 1
@@ -63,9 +66,9 @@ end
 local function find(line, col)
     local cands = {} ---@type LvimCycleMatch[]
     for _, r in ipairs(RADIX) do
-        scan(line, r.pat, col, cands)
+        scan(line, r.pat, col, cands, true) -- a radix literal must not start mid-token (1920x1080 → not 0x1080)
     end
-    scan(line, "%-?%d+", col, cands)
+    scan(line, "%-?%d+", col, cands) -- bare decimal stays unguarded; the ranking resolves runs (native <C-a>)
     return engine.pick(cands, col)
 end
 

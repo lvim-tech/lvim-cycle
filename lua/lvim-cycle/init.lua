@@ -26,8 +26,9 @@ local M = {}
 
 ---@type boolean  one-time registration (maps, highlight bind) done
 local registered = false
----@type integer  signed delta stashed by the last normal-mode trigger (direction × count); re-read by opfunc on `.`
-local pending_delta = 1
+---@type 1|-1  DIRECTION stashed by the last normal-mode trigger; the COUNT stays pending on `g@` so `.`/`5.`
+--- pick up the count natively (a new count before `.` REPLACES the original, per `:h .`).
+local pending_dir = 1
 
 --- Array-replacing deep merge (mirrors lvim-utils.utils.merge) for a standalone install:
 --- list values REPLACE — a user group list is the list, not an index-merge with stale
@@ -87,15 +88,17 @@ end
 --- 'operatorfunc' needs a reachable v:lua name.
 ---@return nil
 function M.opfunc(_)
-    engine.apply(pending_delta, augends.for_buffer(0))
+    -- v:count1 INSIDE the opfunc is the operator's count on the initial press, on plain `.` (original count
+    -- re-used) and on `5.` (the new count) — so reading it here gives native-parity dot-repeat.
+    engine.apply(pending_dir * vim.v.count1, augends.for_buffer(0))
 end
 
---- Build a normal-mode expr trigger: stash direction × count, arm operatorfunc, "g@l".
+--- Build a normal-mode expr trigger: stash the DIRECTION, arm operatorfunc, "g@l" (count stays pending).
 ---@param dir 1|-1
 ---@return fun(): string
 local function trigger(dir)
     return function()
-        pending_delta = dir * vim.v.count1
+        pending_dir = dir -- the count stays pending on g@l and lands in opfunc's v:count1 (native dot-repeat)
         vim.go.operatorfunc = "v:lua.require'lvim-cycle'.opfunc"
         return "g@l"
     end
