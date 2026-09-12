@@ -21,7 +21,7 @@ The engine never matches **backwards**: like native `<C-a>`, only a value under 
 
 ## Installation
 
-Requires Neovim >= 0.10. [lvim-utils](https://github.com/lvim-tech/lvim-utils) is an optional dependency (palette-derived flash color and the shared config merge); without it lvim-cycle falls back to an `IncSearch` link and a bundled merge.
+Requires Neovim >= 0.12. [lvim-utils](https://github.com/lvim-tech/lvim-utils) is an optional dependency (palette-derived flash color and the shared config merge); without it lvim-cycle falls back to an `IncSearch` link and a bundled merge.
 
 ### lvim-installer (recommended)
 
